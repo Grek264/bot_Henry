@@ -115,24 +115,17 @@ def count_mach(name_file , id ):
     result = pd.read_excel(f'file\match\{name_file}_result.xlsx')
     result.head()
     name = file['Alias'].tolist()
-    Start_Date = file['Period'].tolist()
+    Start_Date = (file['Period'].tolist())
     Speed = file['Speed'].tolist()
     Games = file['Games'].tolist()
-    lengh = len(name)
+    lengh = name.index(False)
     percent = lengh / 100
-    progres = 0
-    count_progres = 0
     for nuber in range(0, lengh):
-        # if (nuber/percent - progres) >= 5:
-        #     count_progres += 1
-        #     bot.send_message(id,f'прогресс выполнения-{count_progres * 5}%')
-        #     progres = nuber / percent
-        # else:
-        #     progres = nuber / percent
         print(f'{nuber / percent} %')
         Name_result = result['Name'].tolist()
         Games_result = result['Games'].tolist()
         Date = result['Date'].tolist()
+
         if (name[nuber] in Name_result) == False:
             if Speed[nuber] == 'Flash' or Speed[nuber] == 'GG':
                 count =  3 * Games[nuber]
@@ -142,26 +135,25 @@ def count_mach(name_file , id ):
                 count = 1 * Games[nuber]
             elif Speed[nuber] == 'Nitro':
                 count =  Games[nuber] / 3
-            new_player = ({'Name': [name[nuber]], 'Games':[count], 'Date':[Start_Date[nuber]]})
+                # str(Start_Date[nuber].strftime("%m %Y"))
+            new_player = ({'Name': [name[nuber]], 'Games':[count], 'Date':[(str(Start_Date[nuber])[0:7])]})
             df = pd.DataFrame(new_player, columns=['Name','Games','Date'])
             result = pd.concat([result, df], ignore_index=True, sort=False)
             result.to_excel(f'file\match\{name_file}_result.xlsx')
-        elif (Start_Date[nuber] in Date):
+        elif ((str(Start_Date[nuber])[0:7]) in Date):
             boolean_variable = -1
             while boolean_variable == -1:
                 index = 1
                 for index in range(len(Name_result)):
-                    if Name_result[index] == name[nuber] and Start_Date[nuber] == Date[index]:
+                    if Name_result[index] == name[nuber] and (str(Start_Date[nuber])[0:7]) == (Date[index]):
                         boolean_variable = index
                 if boolean_variable != -1:
-                    if Speed[nuber] == 'Flash' or Speed[nuber] == 'GG':
+                    if Speed[nuber] == 'Flash' or Speed[nuber] == 'GG' or Speed[nuber] == 'Nitro' :
                         count = 3 * Games[nuber]
                     elif Speed[nuber] == 'Winamax' or Speed[nuber] == 'WMX':
                         count = 3 * Games[nuber]
                     elif Speed[nuber] == 'Normal':
                         count = 1 * Games[nuber]
-                    elif Speed[nuber] == 'Nitro':
-                        count = Games[nuber] / 3
                     result.at[boolean_variable, 'Games'] = count + Games_result[boolean_variable]
                     result.to_excel(f'file\match\{name_file}_result.xlsx')
                 else:
@@ -174,7 +166,7 @@ def count_mach(name_file , id ):
                         count = 1 * Games[nuber]
                     elif Speed[nuber] == 'Nitro':
                         count = Games[nuber] / 3
-                    new_player = ({'Name': [name[nuber]], 'Games': [count], 'Date': [Start_Date[nuber]]})
+                    new_player = ({'Name': [name[nuber]], 'Games': [count], 'Date': [(str(Start_Date[nuber])[0:7])]})
                     df = pd.DataFrame(new_player, columns=['Name', 'Games', 'Date'])
                     result = pd.concat([result, df], ignore_index=True, sort=False)
                     result.to_excel(f'file\match\{name_file}_result.xlsx')
@@ -187,7 +179,7 @@ def count_mach(name_file , id ):
                         count = 1 * Games[nuber]
             elif Speed[nuber] == 'Nitro':
                 count = Games[nuber] / 3
-            new_player = ({'Name': [name[nuber]], 'Games': [count], 'Date': [Start_Date[nuber]]})
+            new_player = ({'Name': [name[nuber]], 'Games': [count], 'Date': [(str(Start_Date[nuber])[0:7])]})
             df = pd.DataFrame(new_player, columns=['Name', 'Games', 'Date'])
             result = pd.concat([result, df], ignore_index=True, sort=False)
             result.to_excel(f'file\match\{name_file}_result.xlsx')
