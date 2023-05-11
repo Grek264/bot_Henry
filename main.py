@@ -1,7 +1,8 @@
+import webbrowser
 from random import randint
 import asyncio
 import os
-
+import random
 import psycopg2
 
 from googletrans import Translator
@@ -10,13 +11,18 @@ import pymorphy2
 
 from datetime import datetime
 
-import fake_useragent
+from fake_useragent import UserAgent
+
+import time
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
-
+from selenium import webdriver
+from selenium.common import NoSuchElementException
+from selenium.webdriver.common.by import By
 from config import TOKEN
-
+import pytesseract
+from PIL import Image
 import requests
 from bs4 import BeautifulSoup
 bot_loop = asyncio.new_event_loop()
@@ -29,22 +35,16 @@ import pandas as pd
 import numpy as np
 
 
-@dp.callback_query_handler(text=['pars_chek'])
-async def process_start_command(message: types.Message):
-    answer = steel_phoenix_pars(0)
-    # await bot.send_message(message.from_user.id,f'{answer}')
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text="audit_processing", callback_data="audit_processing"))
-    keyboard.add(types.InlineKeyboardButton(text="pars_chek", callback_data="pars_chek"))
     keyboard.add(types.InlineKeyboardButton(text="match_count", callback_data="match_count"))
     await message.answer("Вас приветсвует личный помошник Henry чем я могу помочь вам",reply_markup=keyboard)
 @dp.message_handler(commands=['function_menu'])
 async def process_start_command(message: types.Message):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text="audit_processing", callback_data="audit_processing"))
-    keyboard.add(types.InlineKeyboardButton(text="pars_chek", callback_data="pars_chek"))
     keyboard.add(types.InlineKeyboardButton(text="match_count", callback_data="match_count"))
     await message.answer("Вас приветсвует личный помошник Henry выберете оду из ниже предложенных функций",reply_markup=keyboard)
 
@@ -57,7 +57,7 @@ async def processing_message(message: types.Message):
         global name_file
         name_file = message.text
         await bot.send_message(message.from_user.id,"теперь отправте мене ваш файл в фармате .xlsx")
-        save_file("match")
+        save_file(key ='match')
 
 
 
@@ -71,14 +71,14 @@ async def processing_message(message: types.Message):
         global name_file
         name_file = message.text
         await bot.send_message(message.from_user.id, "теперь отправте мене ваш файл в фармате .xlsx")
-        save_file("audit")
+        save_file(key ='audit')
 
 
 def save_file (key):
     @dp.message_handler(content_types=["document"])
     async def file_manage(message: types.Message):
         global name_file
-        await message.document.download(destination=f'file\{key}\{name_file}.xlsx')
+        await message.document.download(destination=f'file\\{key}\\{name_file}.xlsx')
         await bot.send_message(message.from_user.id, "Отлично ваш файл был успешно сахранён, начинаю оработку это может занять некоторое время ")
         if (key == "match"):
             count_mach(name_file ,message.from_user.id )
@@ -86,36 +86,154 @@ def save_file (key):
             f = open(f'file\\match\\{name_file}_result.xlsx',"rb")
             await bot.send_document(message.chat.id, f)
         elif(key == "audit"):
-            count_mach(name_file,message.from_user.id)
+            steel_phoenix_pars(name_file,message.from_user.id)
             await bot.send_message(message.from_user.id,"обработка файла завершена отправляю вам финальный результат \n /function_menu")
             f = open(f'file\\audit\\{name_file}_result.xlsx', "rb")
             await bot.send_document(message.chat.id, f)
 
 
 
-def steel_phoenix_pars(audit , id):
-    file = pd.read_excel(f'file\\audit\\{name_file}.xlsx')
-    file.head()
 
-    url = 'https://steel-phoenix.ru/sc/report/auditcheck.php'
+def steel_phoenix_pars(audit , id):
+
+    url = 'https://steel-phoenix.ru'
     login = 'IvanFlay3r'
     password = 'U4pcWqH4n'
 
-    session = requests.Session()
-    session.auth = (login, password)
+    driver = webdriver.Chrome()
+    driver.get(url)
 
-    response = session.get(url)
+    login_button = driver.find_element(By.ID,"login-switch")
+    login_button.click()
 
-    soup = BeautifulSoup(response.text, 'html.parser')
+    # try:
+    #     driver.find_element(By.ID,"rc-imageselect")
+    #     print("Элемент найден")
+    #     captcha = driver.find_element(By.ID, "rc-imageselect")
+    #     captcha.screenshot('captcha.png')
+    #
+    #     img = Image.open('captcha.png')
+    #     text = pytesseract.image_to_string(img)
+    #
+    #     input_field = driver.find_element(By.CLASS_NAME, "rc-imageselect-challenge")
+    #     input_field.send_keys(text)
+    # except NoSuchElementException:
+    #     print("Элемент не найден")
 
-    # Найдите поле с ссылкой и вставьте передаваемый текст
-    link_field = soup.find('input', {'name': 'link'})
-    link_field['value'] = 'https://example.com'
 
-    # Отправьте форму
-    response = session.post(url, data=soup.select_one('form').attrs['data-ajax-form'])
-    print(response.text)
-    return response
+
+    # Находим поля для ввода логина и пароля
+    username_field = driver.find_element(By.NAME,'username')
+    password_field = driver.find_element(By.NAME,'password')
+
+    # Вводим логин и пароль
+    username_field.send_keys(login)
+    password_field.send_keys(password)
+
+    # Нажимаем кнопку "Войти"
+    login_button = driver.find_element(By.ID,"send-form-button")
+    login_button.click()
+
+    time.sleep(1)
+    main_window = driver.current_window_handle
+    audit_chek = driver.find_element(By.XPATH,"//*[text()='Audit check']" )
+    audit_chek.click()
+
+    print("Fuk this captcha")
+
+    file = pd.read_excel(f'file\\audit\\{audit}.xlsx')
+    file.head()
+    periud_list = (file['Timestamp'].tolist())
+    Name_list = (file['Никнейм на Pokerstars.com'].tolist())
+    link_list = file['Ссылка на аудит Pokerstars.com'].tolist()
+    lengh = len(Name_list)
+    result_file = pd.DataFrame({'Alias': [], 'Timestamp': [], 'Speed': [], 'Stake': [], 'Games': [], 'RB': []})
+    df = pd.DataFrame(result_file, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+    result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+    result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+    result_file = pd.read_excel(f'file\\audit\\{name_file}_result.xlsx')
+    result_file.head()
+    driver.switch_to.window(driver.window_handles[-1])
+    for number in range(82, lengh): #заменить 82 на 0
+        print(number)
+        response = requests.get(link_list[number])
+        if ("404 Not Found" in str(response.content)) == False:
+            print("start")
+            link = driver.find_element(By.ID,"urla")
+            driver.find_element(By.ID, "urla").clear()
+            link.send_keys(link_list[number])
+
+            chek = driver.find_element(By.ID, "startbut")
+            chek.click()
+            time.sleep(1)
+            result = driver.find_element(By.CLASS_NAME, "container")
+            result = result.get_attribute('outerHTML')
+            s_1 = result.find("Results:")
+            s_2 = result.find("Deal:")
+            result = result[s_1:s_2]
+            dictionary = {"</b>": "","<br>":"","<div>":"","<b>":"",f'<div class="audit_block_wrap"> ':""}
+            result = multiple_replace(result, dictionary)
+            count = result.count('Profit')
+            for number_2 in range(0,count):
+                print( f'{result}_befor')
+                # print(result[result.find('$')+1:result.find('-')])
+                if (result[result.find('$')+1:result.find('-')]) == ' ':
+                    if number_2 != count - 1:
+                        new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
+                            ,'Speed':['Normal']
+                            ,'Stake':[result[result.find('Results:')+9:result.find('$')]]
+                            ,'Games':[result[result.find('$ - ')+4:result.find(' spins')]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                        first_index = result.find('$')
+                        second_index = result.find('$', first_index + 1)
+                        result = result[:result.find('Results:') ] + result[second_index + 2:]
+                        result ='Results: '+ result
+                        print( f'{result}_after')
+                    else:
+                        new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                            , 'Speed': ['Normal']
+                            , 'Stake': [result[result.find('Results:') + 9:result.find('$')]]
+                            , 'Games': [result[result.find('$ - ') + 4:result.find(' spins')]]
+                            , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('Chest:')]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                        first_index = result.find('$')
+                        second_index = result.find('$', first_index + 1)
+                        result = result[:result.find('Results:')] + result[second_index + 2:]
+                        result = 'Results: ' + result
+                        print(f'{result}_after')
+                else:
+                    if number_2 != count:
+                        new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
+                            ,'Speed':[result[result.find('$ ')+1:result.find(' - ')]]
+                            ,'Stake':[result[result.find('Results:')+9:result.find('$')]]
+                            ,'Games':[result[result.find(' - ')+3:result.find(' spins')]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                        first_index = result.find('$')
+                        second_index = result.find('$', first_index + 1)
+                        result = result[:result.find('Results:') ] + result[second_index + 2:]
+                        result ='Results: '+ result
+                        print( f'{result}_after')
+                    else:
+                        new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                            , 'Speed': [result[result.find('$ ')+1:result.find(' - ')]]
+                            , 'Stake': [result[result.find('Results:') + 9:result.find('$')]]
+                            , 'Games': [result[result.find(' - ')+3:result.find(' spins')]]
+                            , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('Chest:')]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                        first_index = result.find('$')
+                        second_index = result.find('$', first_index + 1)
+                        result = result[:result.find('Results:')] + result[second_index + 2:]
+                        result = 'Results: ' + result
+                        print(f'{result}_after')
+            print("dune")
 
 def count_mach(name_file , id ):
     # cols_user_base = [1, 3, 4, 9, 11]
@@ -136,8 +254,6 @@ def count_mach(name_file , id ):
     for nuber in range(0, lengh):
         print(f'{nuber / percent} %')
         print(nuber)
-        if str(name[nuber]) ==('Freedoom'):
-            print("fak")
         Name_result = (result.columns.ravel())
         Date = result['Date/name'].tolist()
 
@@ -251,6 +367,10 @@ def count_mach(name_file , id ):
             result = pd.concat([result, df], ignore_index=True, sort=False)
             result.to_excel(f'file\\match\\{name_file}_result.xlsx')
 
+def multiple_replace(page, dictionary):
+    for i, j in dictionary.items():
+        page = page.replace(i, j)
+    return page
 
 if __name__ == '__main__':
     myloop = asyncio.new_event_loop()
