@@ -29,6 +29,7 @@ bot_loop = asyncio.new_event_loop()
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 name_file =""
+global key
 
 import pandas as pd
 
@@ -52,12 +53,19 @@ async def process_start_command(message: types.Message):
 @dp.callback_query_handler(text="match_count")
 async def processing_message(message: types.Message):
     await bot.send_message(message.from_user.id, "Пожалуйста укажите название под которым вы хотите сохранить этот файл")
-    @dp.message_handler()
-    async def processing_message(message: types.Message):
-        global name_file
+    global key
+    key = 'match'
+    return key
+
+@dp.message_handler()
+async def processing_message(message: types.Message):
+    global name_file , key
+    if key != '':
         name_file = message.text
         await bot.send_message(message.from_user.id,"теперь отправте мене ваш файл в фармате .xlsx")
-        save_file(key ='match')
+        save_file(key)
+    else:
+        await bot.send_message(message.from_user.id,"простите но я пока не умею отвечеть на такие запросы")
 
 
 
@@ -66,30 +74,30 @@ async def processing_message(message: types.Message):
 @dp.callback_query_handler(text="audit_processing")
 async def processing_message(message: types.Message):
     await bot.send_message(message.from_user.id,"Пожалуйста укажите название под которым вы хотите сохранить этот файл")
-    @dp.message_handler()
-    async def processing_message(message: types.Message):
-        global name_file
-        name_file = message.text
-        await bot.send_message(message.from_user.id, "теперь отправте мене ваш файл в фармате .xlsx")
-        save_file(key ='audit')
-
+    global key
+    key = 'audit'
+    return key
 
 def save_file (key):
     @dp.message_handler(content_types=["document"])
     async def file_manage(message: types.Message):
-        global name_file
+        global name_file , key
         await message.document.download(destination=f'file\\{key}\\{name_file}.xlsx')
         await bot.send_message(message.from_user.id, "Отлично ваш файл был успешно сахранён, начинаю оработку это может занять некоторое время ")
         if (key == "match"):
+            key = ''
             count_mach(name_file ,message.from_user.id )
             await bot.send_message(message.from_user.id,"обработка файла завершена отправляю вам финальну сводку \n /function_menu")
             f = open(f'file\\match\\{name_file}_result.xlsx',"rb")
             await bot.send_document(message.chat.id, f)
+            return key
         elif(key == "audit"):
+            key = ''
             steel_phoenix_pars(name_file,message.from_user.id)
             await bot.send_message(message.from_user.id,"обработка файла завершена отправляю вам финальный результат \n /function_menu")
             f = open(f'file\\audit\\{name_file}_result.xlsx', "rb")
             await bot.send_document(message.chat.id, f)
+            return key
 
 
 
