@@ -114,22 +114,6 @@ def steel_phoenix_pars(audit , id):
     login_button = driver.find_element(By.ID,"login-switch")
     login_button.click()
 
-    # try:
-    #     driver.find_element(By.ID,"rc-imageselect")
-    #     print("Элемент найден")
-    #     captcha = driver.find_element(By.ID, "rc-imageselect")
-    #     captcha.screenshot('captcha.png')
-    #
-    #     img = Image.open('captcha.png')
-    #     text = pytesseract.image_to_string(img)
-    #
-    #     input_field = driver.find_element(By.CLASS_NAME, "rc-imageselect-challenge")
-    #     input_field.send_keys(text)
-    # except NoSuchElementException:
-    #     print("Элемент не найден")
-
-
-
     # Находим поля для ввода логина и пароля
     username_field = driver.find_element(By.NAME,'username')
     password_field = driver.find_element(By.NAME,'password')
@@ -155,14 +139,14 @@ def steel_phoenix_pars(audit , id):
     Name_list = (file['Никнейм на Pokerstars.com'].tolist())
     link_list = file['Ссылка на аудит Pokerstars.com'].tolist()
     lengh = len(Name_list)
-    result_file = pd.DataFrame({'Alias': [], 'Timestamp': [], 'Speed': [], 'Stake': [], 'Games': [], 'RB': []})
-    df = pd.DataFrame(result_file, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
+    result_file = pd.DataFrame({'Alias': [], 'Timestamp': [], 'Speed': [],'StakeName': [], 'Stake': [], 'Games': [],'Profit':[], 'RB': []})
+    df = pd.DataFrame(result_file, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
     result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
     result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
     result_file = pd.read_excel(f'file\\audit\\{name_file}_result.xlsx')
     result_file.head()
     driver.switch_to.window(driver.window_handles[-1])
-    for number in range(82, lengh): #заменить 82 на 0
+    for number in range(80, lengh): #заменить на 0 в финалке или придумать отсцёт
         print(number)
         response = requests.get(link_list[number])
         if ("404 Not Found" in str(response.content)) == False:
@@ -179,68 +163,175 @@ def steel_phoenix_pars(audit , id):
             s_1 = result.find("Results:")
             s_2 = result.find("Deal:")
             result = result[s_1:s_2]
+            if ("Jack:" in result):
+                if ("Lost;" in result):
+                    dictionary = {f'{result[result.find("Jack:"):(result.find("Lost;")+5)]}':""}
+                    result = multiple_replace(result, dictionary)
+                elif ("Won;" in result):
+                    dictionary = {f'{result[result.find("Jack:"):(result.find("Won;") + 4)]}': ""}
+                    result = multiple_replace(result, dictionary)
             dictionary = {"</b>": "","<br>":"","<div>":"","<b>":"",f'<div class="audit_block_wrap"> ':""}
             result = multiple_replace(result, dictionary)
+            if ("No data" in result):
+                new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                    , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('$		Chest:')]]})
+                df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
             count = result.count('Profit')
             for number_2 in range(0,count):
                 print( f'{result}_befor')
                 # print(result[result.find('$')+1:result.find('-')])
                 if (result[result.find('$')+1:result.find('-')]) == ' ':
                     if number_2 != count - 1:
-                        new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
-                            ,'Speed':['Normal']
-                            ,'Stake':[result[result.find('Results:')+9:result.find('$')]]
-                            ,'Games':[result[result.find('$ - ')+4:result.find(' spins')]]})
-                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
-                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
-                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
                         first_index = result.find('$')
                         second_index = result.find('$', first_index + 1)
+                        last_RB_spase = 0
+                        if 'Results:  ' in result:
+                            last_RB_spase = 10
+                        elif 'Results: ' in result:
+                            last_RB_spase = 9
+                        new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
+                            ,'Speed':['Normal']
+                            ,'StakeName': ['$' + result[result.find('Results:') + 9:result.find('$')]]
+                            ,'Stake':[result[result.find('Results:')+last_RB_spase:result.find('$')]]
+                            ,'Games':[result[result.find('$ - ')+4:result.find(' spins')]]
+                            ,'Profit':[result[result.find('Profit: ')+8:second_index]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
                         result = result[:result.find('Results:') ] + result[second_index + 2:]
                         result ='Results: '+ result
                         print( f'{result}_after')
                     else:
-                        new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
-                            , 'Speed': ['Normal']
-                            , 'Stake': [result[result.find('Results:') + 9:result.find('$')]]
-                            , 'Games': [result[result.find('$ - ') + 4:result.find(' spins')]]
-                            , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('Chest:')]]})
-                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
-                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
-                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
                         first_index = result.find('$')
                         second_index = result.find('$', first_index + 1)
+                        last_RB_spase = 0
+                        if 'Results:  ' in result:
+                            last_RB_spase = 10
+                        elif 'Results: ' in result:
+                            last_RB_spase = 9
+                        new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                            , 'Speed': ['Normal']
+                            , 'StakeName': ['$' + result[result.find('Results:') + 9:result.find('$')]]
+                            , 'Stake': [result[result.find('Results:') + last_RB_spase:result.find('$')]]
+                            , 'Games': [result[result.find('$ - ') + 4:result.find(' spins')]]
+                            , 'Profit': [result[result.find('Profit: ')+8:second_index]]
+                            , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('$		Chest:')]]})
+                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
                         result = result[:result.find('Results:')] + result[second_index + 2:]
                         result = 'Results: ' + result
                         print(f'{result}_after')
                 else:
-                    if number_2 != count:
-                        new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
-                            ,'Speed':[result[result.find('$ ')+1:result.find(' - ')]]
-                            ,'Stake':[result[result.find('Results:')+9:result.find('$')]]
-                            ,'Games':[result[result.find(' - ')+3:result.find(' spins')]]})
-                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
-                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
-                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
-                        first_index = result.find('$')
-                        second_index = result.find('$', first_index + 1)
-                        result = result[:result.find('Results:') ] + result[second_index + 2:]
-                        result ='Results: '+ result
-                        print( f'{result}_after')
+                    if number_2 != count - 1:
+                        if "(1million)" in result[result.find('$ ')+1:result.find(' - ')]:
+                            first_index = result.find('$')
+                            second_index = result.find('$', first_index + 1)
+                            last_RB_spase = 0
+                            if 'Results:  ' in result:
+                                last_RB_spase = 10
+                            elif 'Results: ' in result:
+                                last_RB_spase = 9
+                            if '' in result[result.find('(1million) ') + 10:result.find(' - ')]:
+                                new_entry = (
+                                {'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                                    , 'Speed': ['Normal']
+                                    , 'StakeName': ['$' + result[result.find('Results:') + last_RB_spase:result.find('$')]  + ' (1M)']
+                                    , 'Stake': [(result[result.find('Results:') + 9:result.find('$')])]
+                                    , 'Games': [result[result.find(' - ') + 3:result.find(' spins')]]
+                                    , 'Profit': [result[result.find('Profit: ') + 8:second_index]]})
+                            else:
+                                new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                                    , 'Speed': [result[result.find('(1million) ') + 10:result.find(' - ')]]
+                                    , 'StakeName': ['$' + result[result.find('Results:') + last_RB_spase:result.find('$')] + ' (1M) ' + result[result.find('$ ')+2:result.find(' - ')]]
+                                    , 'Stake': [(result[result.find('Results:') + 9:result.find('$')])]
+                                    , 'Games': [result[result.find(' - ') + 3:result.find(' spins')]]
+                                    , 'Profit': [result[result.find('Profit: ')+8:second_index]]})
+                            df = pd.DataFrame(new_entry,
+                                              columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                            result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                            result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                            result = result[:result.find('Results:')] + result[second_index + 2:]
+                            result = 'Results: ' + result
+                            print(f'{result}_after')
+                        else:
+                            first_index = result.find('$')
+                            second_index = result.find('$', first_index + 1)
+                            last_RB_spase = 0
+                            if 'Results:  ' in result:
+                                last_RB_spase = 10
+                            elif 'Results: ' in result:
+                                last_RB_spase = 9
+                            new_entry = ({'Alias':[Name_list[number]] ,'Timestamp':[(str(periud_list[number]))[0:10]]
+                                ,'Speed':[result[result.find('$ ')+1:result.find(' - ')]]
+                                ,'StakeName': ['$' + result[result.find('Results:') + last_RB_spase:result.find('$')] + ' ' + result[result.find('$ ') + 2:result.find(' - ')]]
+                                ,'Stake':[result[result.find('Results:')+9:result.find('$')]]
+                                ,'Games':[result[result.find(' - ')+3:result.find(' spins')]]
+                                , 'Profit': [result[result.find('Profit: ')+8:second_index]]})
+                            df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                            result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                            result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                            result = result[:result.find('Results:') ] + result[second_index + 2:]
+                            result ='Results: '+ result
+                            print( f'{result}_after')
                     else:
-                        new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
-                            , 'Speed': [result[result.find('$ ')+1:result.find(' - ')]]
-                            , 'Stake': [result[result.find('Results:') + 9:result.find('$')]]
-                            , 'Games': [result[result.find(' - ')+3:result.find(' spins')]]
-                            , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('Chest:')]]})
-                        df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'Stake', 'Games', 'RB'])
-                        result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
-                        result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
-                        first_index = result.find('$')
-                        second_index = result.find('$', first_index + 1)
-                        result = result[:result.find('Results:')] + result[second_index + 2:]
-                        result = 'Results: ' + result
-                        print(f'{result}_after')
+                        if "(1million)" in result[result.find('$ ') + 1:result.find(' - ')]:
+                            first_index = result.find('$')
+                            second_index = result.find('$', first_index + 1)
+                            last_RB_spase = 0
+                            if 'Results:  ' in result:
+                                last_RB_spase = 10
+                            elif 'Results: ' in result:
+                                last_RB_spase = 9
+                            if '' in result[result.find('(1million) ') + 10:result.find(' - ')]:
+                                new_entry = (
+                                {'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                                    , 'Speed': ['Normal']
+                                    ,'StakeName': ['$' + result[result.find('Results:') + last_RB_spase:result.find('$')] + ' (1M)']
+                                    , 'Stake': [(result[result.find('Results:') + 9:result.find('$')])]
+                                    , 'Games': [result[result.find(' - ') + 3:result.find(' spins')]]
+                                    , 'Profit': [result[result.find('Profit: ') + 8:second_index]]
+                                    ,
+                                 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('$		Chest:')]]})
+                            else:
+
+                                new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                                    , 'Speed':[result[result.find('$ ')+1:result.find(' - ')]]
+                                    , 'StakeName': ['$' + result[result.find('Results:') + 10:result.find('$')] + ' (1M) ' + result[result.find('$ ') + 2:result.find(' - ')]]
+                                    , 'Stake': [(result[result.find('Results:') + last_RB_spase:result.find('$')]) + '(1M)']
+                                    , 'Games': [result[result.find(' - ') + 3:result.find(' spins')]]
+                                    , 'Profit': [result[result.find('Profit: ')+8:second_index]]
+                                    , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('$		Chest:')]]})
+                            df = pd.DataFrame(new_entry,
+                                              columns=['Alias', 'Timestamp', 'Speed',  'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                            result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                            result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                            result = result[:result.find('Results:')] + result[second_index + 2:]
+                            result = 'Results: ' + result
+                            print(f'{result}_after')
+                        else:
+                            first_index = result.find('$')
+                            second_index = result.find('$', first_index + 1)
+                            last_RB_spase = 0
+                            if 'Results:  ' in result:
+                                last_RB_spase = 10
+                            elif 'Results: ' in result:
+                                last_RB_spase =9
+                            new_entry = ({'Alias': [Name_list[number]], 'Timestamp': [(str(periud_list[number]))[0:10]]
+                                , 'Speed': [result[result.find('$ ')+1:result.find(' - ')]]
+                                , 'StakeName': ['$' + result[result.find('Results: ') + last_RB_spase:result.find('$')] + ' ' + result[result.find('$ ') + 2:result.find(' - ')]]
+                                , 'Stake': [result[result.find('Results:') + 9:result.find('$')]]
+                                , 'Games': [result[result.find(' - ')+3:result.find(' spins')]]
+                                , 'Profit': [result[result.find('Profit: ')+8:second_index]]
+                                , 'RB': [result[result.find('RB: 		Total: ') + 13:result.find('$		Chest:')]]})
+                            df = pd.DataFrame(new_entry, columns=['Alias', 'Timestamp', 'Speed', 'StakeName', 'Stake', 'Games','Profit', 'RB'])
+                            result_file = pd.concat([result_file, df], ignore_index=True, sort=False)
+                            result_file.to_excel(f'file\\audit\\{name_file}_result.xlsx')
+                            result = result[:result.find('Results:')] + result[second_index + 2:]
+                            result = 'Results: ' + result
+                            print(f'{result}_after')
             print("dune")
 
 def count_mach(name_file , id ):
